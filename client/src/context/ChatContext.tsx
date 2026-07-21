@@ -59,8 +59,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         // Check for channel status before joining
         const baseUrl = process.env.CHATE2EE_API_URL || 'http://localhost:3001';
-        const statusRes = await fetch(`${baseUrl}/chatHash/status/${hash}`);
-        if (statusRes.status === 404) {
+        const statusRes = await fetch(`${baseUrl}/api/chat-link/status/${encodeURIComponent(hash)}`);
+        if (statusRes.status === 410) {
           throw new Error('CHANNEL_DELETED');
         }
         if (!statusRes.ok) {

@@ -93,6 +93,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onStartCall }) => {
           variant="danger"
           onClick={handleDelete}
           title="Delete Chat"
+          disabled={!channelHash}
         >
           <TrashIcon size={20} />
         </Button>
