@@ -105,7 +105,7 @@ describe('AesGcmEncryption (AES-GCM) – real Web Crypto', () => {
         expect(iv).toBeInstanceOf(Uint8Array);
         expect(iv.length).toBe(12); // AES-GCM IV is 12 bytes
 
-        const decryptedBuffer = await aes.decryptData(encryptedData, iv);
+        const decryptedBuffer = await aes.decryptData(encryptedData as any, iv as any);
         const decryptedText = new TextDecoder().decode(decryptedBuffer);
 
         expect(decryptedText).toBe(originalText);
@@ -120,7 +120,7 @@ describe('AesGcmEncryption (AES-GCM) – real Web Crypto', () => {
         );
 
         // No importRemoteKey() call → should throw
-        await expect(aes.decryptData(encryptedData, iv)).rejects.toThrow(
+        await expect(aes.decryptData(encryptedData as any, iv as any)).rejects.toThrow(
             'Remote AES key not set.'
         );
     });
@@ -161,7 +161,7 @@ describe('AES key exchange via RSA-encrypted channel', () => {
         );
 
         // Bob decrypts the data using the AES key he received through the RSA-encrypted channel
-        const decryptedBuffer = await bobAes.decryptData(encryptedData, iv);
+        const decryptedBuffer = await bobAes.decryptData(encryptedData as any, iv as any);
         const decryptedText = new TextDecoder().decode(decryptedBuffer);
 
         expect(decryptedText).toBe(originalText);
@@ -328,7 +328,7 @@ describe('Pluggable encryption (integration)', () => {
         const { encryptedData, iv } = await aliceStrategy.symmetric.encryptData(
             new TextEncoder().encode(plaintext).buffer
         );
-        const decrypted = await bobStrategy.symmetric.decryptData(encryptedData, iv);
+        const decrypted = await bobStrategy.symmetric.decryptData(encryptedData as any, iv as any);
 
         expect(new TextDecoder().decode(decrypted)).toBe(plaintext);
 

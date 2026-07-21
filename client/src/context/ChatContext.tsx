@@ -57,6 +57,16 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     async (hash: string) => {
       if (!chat) throw new Error('Chat not initialized');
       try {
+        // Check for channel status before joining
+        const baseUrl = process.env.CHATE2EE_API_URL || 'http://localhost:3001';
+        const statusRes = await fetch(`${baseUrl}/api/chat-link/status/${encodeURIComponent(hash)}`);
+        if (statusRes.status === 410) {
+          throw new Error('CHANNEL_DELETED');
+        }
+        if (!statusRes.ok) {
+          throw new Error('Failed to verify channel status');
+        }
+
         // Auto-generate User ID
         const newUserId = (utils as any).generateUUID();
         setUserId(newUserId);
@@ -89,6 +99,35 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await chat.encrypt({ text, image: '' }).send();
       } catch (err) {
         console.error('Failed to send message:', err);
+        throw err;
+      }
+    },
+    [chat, userId]
+  );
+
+  // Send file
+  const sendFile = useCallback(
+    async (file: File) => {
+      if (!chat || !userId) throw new Error('Chat not ready');
+      try {
+        const buffer = await file.arrayBuffer();
+        const filePayload = {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: buffer
+        };
+        const message = createMessage(userId, file.name, 'sent');
+        message.file = {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: URL.createObjectURL(file) // blob URL for local display
+        };
+        addMessage(message);
+        await chat.encrypt({ text: '', image: '', file: filePayload }).send();
+      } catch (err) {
+        console.error('Failed to send file:', err);
         throw err;
       }
     },
@@ -139,8 +178,28 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     chatInstance.on('chat-message', async (msg: any) => {
       try {
-        const plainText = await (utils as any).decryptMessage(msg.message, privateKey);
-        const message = createMessage(msg.sender, plainText, 'received');
+        let plainText = '';
+        if (msg.message) {
+          plainText = await (utils as any).decryptMessage(msg.message, privateKey);
+        }
+        const message = createMessage(msg.sender, plainText || (msg.file ? msg.file.name : ''), 'received');
+        
+        if (msg.file && chat) {
+          try {
+            const decryptedBuffer = await chat.decryptFile(msg.file);
+            const blob = new Blob([decryptedBuffer], { type: msg.file.type });
+            message.file = {
+              name: msg.file.name,
+              type: msg.file.type,
+              size: msg.file.size,
+              data: URL.createObjectURL(blob)
+            };
+          } catch (fileErr) {
+            console.error('Failed to decrypt file:', fileErr);
+            message.text = '[Encrypted file received, decryption failed]';
+          }
+        }
+        
         addMessage(message);
       } catch (err) {
         console.error('Failed to decrypt message:', err);
@@ -181,6 +240,20 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Delete channel
+  const deleteChannel = useCallback(async () => {
+    if (!chat) return;
+    try {
+      await chat.delete();
+      setIsConnected(false);
+      setChannelHash('');
+      setMessages([]);
+    } catch (err) {
+      console.error('Failed to delete channel:', err);
+      throw err;
+    }
+  }, [chat]);
+
   const value: ChatContextType = {
     chat,
     userId,
@@ -195,10 +268,12 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     createNewChannel,
     joinChannel,
     sendMessage,
+    sendFile,
     startCall,
     endCall,
     addMessage,
     setCallDuration,
+    deleteChannel,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

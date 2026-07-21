@@ -13,5 +13,12 @@ export type ChatMessageType = {
     message: string,
     id: number,
     timestamp: number,
-    image?: string
+    image?: string,
+    file?: {
+        name: string,
+        size: number,
+        type: string,
+        data: string,
+        iv: string
+    }
 }

@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { useChat } from '../../context/ChatContext';
 import { Button } from '../common/Button';
-import { CopyIcon, ShareIcon, PhoneIcon } from '../common/icons';
+import { CopyIcon, ShareIcon, PhoneIcon, TrashIcon } from '../common/icons';
 import './ChatHeader.css';
 
 interface ChatHeaderProps {
@@ -13,7 +13,7 @@ interface ChatHeaderProps {
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ onStartCall }) => {
-  const { isConnected, channelHash } = useChat();
+  const { isConnected, channelHash, deleteChannel } = useChat();
   const [hashCopied, setHashCopied] = useState(false);
 
   const handleCopyHash = () => {
@@ -33,6 +33,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onStartCall }) => {
         .catch(() => {
           /* user cancelled */
         });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this secure channel? This cannot be undone.')) {
+      await deleteChannel();
+      window.location.hash = ''; // Clear URL hash
     }
   };
 
@@ -80,6 +87,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onStartCall }) => {
           title="Start Audio Call"
         >
           <PhoneIcon size={20} />
+        </Button>
+        <Button
+          className="btn--icon"
+          variant="danger"
+          onClick={handleDelete}
+          title="Delete Chat"
+          disabled={!channelHash}
+        >
+          <TrashIcon size={20} />
         </Button>
       </div>
     </header>

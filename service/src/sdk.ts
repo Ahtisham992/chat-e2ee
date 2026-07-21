@@ -185,23 +185,59 @@ class ChatE2EE implements IChatE2EE {
         return getUsersInChannel({ channelID: this.channelId });
     }
 
-    public async sendMessage({ image, text }: { image: string, text: string }): Promise<ISendMessageReturn> {
+    public async sendMessage({ image, text, file }: { image?: string, text?: string, file?: any }): Promise<ISendMessageReturn> {
         logger.log(`sendMessage()`);
         this.checkInitialized();
-        return sendMessage({ channelID: this.channelId, userId: this.userId, image, text })
+        return sendMessage({ channelID: this.channelId, userId: this.userId, image, text, file })
     }
 
-    public encrypt({ image, text }: { image: string, text: string }): { send: () => Promise<ISendMessageReturn> } {
+    public encrypt({ image, text, file }: { image?: string, text?: string, file?: { name: string, size: number, type: string, data: ArrayBuffer } }): { send: () => Promise<ISendMessageReturn> } {
         logger.log(`encrypt()`);
         this.checkInitialized();
 
-        const encryptedTextPromise = this.asymEncryption.encryptMessage(text, this.receiverPublicKey!);
+        const encryptedTextPromise = text ? this.asymEncryption.encryptMessage(text, this.receiverPublicKey!) : Promise.resolve(undefined);
+
+        const encryptedFilePromise = file ? this.symEncryption.encryptData(file.data).then(async (res) => {
+            const bufferToBase64 = async (buffer: Uint8Array) => {
+                return new Promise<string>((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+                    reader.readAsDataURL(new Blob([buffer as any]));
+                });
+            };
+
+            return {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                data: await bufferToBase64(res.encryptedData),
+                iv: await bufferToBase64(res.iv)
+            };
+        }) : Promise.resolve(undefined);
+
         return ({
             send: async () => {
                 const encryptedText = await encryptedTextPromise;
-                return this.sendMessage({ image, text: encryptedText })
+                const encryptedFile = await encryptedFilePromise;
+                return this.sendMessage({ image, text: encryptedText as any, file: encryptedFile })
             }
         })
+    }
+
+    public async decryptFile(file: { data: string, iv: string }): Promise<ArrayBuffer> {
+        this.checkInitialized();
+        const base64ToUint8Array = (base64: string) => {
+            const binary_string = window.atob(base64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            return bytes;
+        };
+        const dataBuffer = base64ToUint8Array(file.data);
+        const ivBuffer = base64ToUint8Array(file.iv);
+        return this.symEncryption.decryptData(dataBuffer, ivBuffer);
     }
 
     public on(listener: string, callback: (...args: any[]) => void): void {
