@@ -4,12 +4,17 @@
 
 import type { IChatE2EE } from '@chat-e2ee/service';
 
-// Message type
 export interface Message {
   sender: string;
   text: string;
   type: 'sent' | 'received';
   timestamp: Date;
+  file?: {
+    name: string;
+    type: string;
+    size: number;
+    data: string; // Blob URL
+  };
 }
 
 // Setup view states
@@ -45,6 +50,7 @@ export interface ChatContextType {
   createNewChannel: () => Promise<string>;
   joinChannel: (hash: string) => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
+  sendFile: (file: File) => Promise<void>;
   startCall: () => Promise<void>;
   endCall: () => Promise<void>;
   addMessage: (message: Message) => void;

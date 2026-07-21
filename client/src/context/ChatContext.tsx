@@ -105,6 +105,35 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     [chat, userId]
   );
 
+  // Send file
+  const sendFile = useCallback(
+    async (file: File) => {
+      if (!chat || !userId) throw new Error('Chat not ready');
+      try {
+        const buffer = await file.arrayBuffer();
+        const filePayload = {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: buffer
+        };
+        const message = createMessage(userId, file.name, 'sent');
+        message.file = {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: URL.createObjectURL(file) // blob URL for local display
+        };
+        addMessage(message);
+        await chat.encrypt({ text: '', image: '', file: filePayload }).send();
+      } catch (err) {
+        console.error('Failed to send file:', err);
+        throw err;
+      }
+    },
+    [chat, userId]
+  );
+
   // Start call
   const startCall = useCallback(async () => {
     if (!chat) throw new Error('Chat not initialized');
@@ -149,8 +178,28 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     chatInstance.on('chat-message', async (msg: any) => {
       try {
-        const plainText = await (utils as any).decryptMessage(msg.message, privateKey);
-        const message = createMessage(msg.sender, plainText, 'received');
+        let plainText = '';
+        if (msg.message) {
+          plainText = await (utils as any).decryptMessage(msg.message, privateKey);
+        }
+        const message = createMessage(msg.sender, plainText || (msg.file ? msg.file.name : ''), 'received');
+        
+        if (msg.file && chat) {
+          try {
+            const decryptedBuffer = await chat.decryptFile(msg.file);
+            const blob = new Blob([decryptedBuffer], { type: msg.file.type });
+            message.file = {
+              name: msg.file.name,
+              type: msg.file.type,
+              size: msg.file.size,
+              data: URL.createObjectURL(blob)
+            };
+          } catch (fileErr) {
+            console.error('Failed to decrypt file:', fileErr);
+            message.text = '[Encrypted file received, decryption failed]';
+          }
+        }
+        
         addMessage(message);
       } catch (err) {
         console.error('Failed to decrypt message:', err);
@@ -219,6 +268,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     createNewChannel,
     joinChannel,
     sendMessage,
+    sendFile,
     startCall,
     endCall,
     addMessage,

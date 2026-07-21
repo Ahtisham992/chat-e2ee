@@ -25,9 +25,10 @@ export interface IChatE2EE {
     setChannel(channelId: string, userId: string, userName?: string): void;
     delete(): Promise<void>;
     getUsersInChannel(): Promise<TypeUsersInChannel>;
-    sendMessage(args: { image: string, text: string }): Promise<ISendMessageReturn>;
+    sendMessage(args: { image?: string, text?: string, file?: { name: string, size: number, type: string, data: string, iv: string } }): Promise<ISendMessageReturn>;
     dispose(): void;
-    encrypt({ image, text }: { image: string, text: string }): { send: () => Promise<ISendMessageReturn> };
+    encrypt({ image, text, file }: { image?: string, text?: string, file?: { name: string, size: number, type: string, data: ArrayBuffer } }): { send: () => Promise<ISendMessageReturn> };
+    decryptFile(file: { data: string, iv: string }): Promise<ArrayBuffer>;
     on(listener: SocketListenerType | PeerConnectionEventType, callback: (...args: any) => void): void;
     // webrtc call 
     startCall(): Promise<E2ECall>;

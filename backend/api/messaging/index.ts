@@ -16,9 +16,9 @@ const clients = getClientInstance();
 router.post(
   "/message",
   asyncHandler(async (req: Request, res: Response): Promise<Response<MessageResponse>> => {
-    const { message, sender, channel, image } = req.body;
+    const { message, sender, channel, image, file } = req.body;
 
-    if (!message) {
+    if (!message && !file) {
       return res.send(400);
     }
     const { valid } = await channelValid(channel);
@@ -45,7 +45,8 @@ router.post(
       sender,
       message,
       id,
-      timestamp
+      timestamp,
+      file
     };
 
     if (image) {
