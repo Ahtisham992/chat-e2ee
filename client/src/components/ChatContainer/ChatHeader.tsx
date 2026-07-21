@@ -36,12 +36,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ onStartCall }) => {
     }
   };
 
-  const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this secure channel? This cannot be undone.')) {
-      await deleteChannel();
-      window.location.hash = ''; // Clear URL hash
-    }
-  };
+const handleDelete = async () => {
+  if (!window.confirm('Are you sure you want to delete this secure channel? This cannot be undone.')) return;
+
+  try {
+    await deleteChannel();
+    window.location.hash = ''; // Clear URL hash
+  } catch (err) {
+    console.error('Failed to delete channel:', err);
+    alert((err as any).message || 'Failed to delete channel');
+  }
+};
 
   return (
     <header className={`chat-header glass ${isConnected ? 'active' : ''}`}>
